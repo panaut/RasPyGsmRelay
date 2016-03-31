@@ -3,11 +3,11 @@
 """ Low-level serial communications handling """
 
 import sys, threading, logging
-import compat # For Python 2.6 compatibility
+import gsmModem.compat # For Python 2.6 compatibility
 import re
-import serial # pyserial: http://pyserial.sourceforge.net
+import serial   # pyserial: http://pyserial.sourceforge.net
 
-from exceptions import TimeoutException
+from gsmModem.exceptions import TimeoutException
 
 class SerialComms(object):
     """ Wraps all low-level serial communications (actual read/write operations) """

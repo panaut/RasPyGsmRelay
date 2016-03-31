@@ -3,15 +3,15 @@
 """ High-level API classes for an attached GSM modem """
 
 import sys, re, logging, weakref, time, threading, abc, codecs
-import compat # For Python 2.6 compatibility
+import gsmModem.compat # For Python 2.6 compatibility
 
 from datetime import datetime
-from serial_comms import SerialComms
-from exceptions import CommandError, InvalidStateException, CmeError, CmsError, InterruptedException, TimeoutException, PinRequiredError, IncorrectPinError, SmscNumberUnknownError
-from pdu import encodeSmsSubmitPdu, decodeSmsPdu
-from util import SimpleOffsetTzInfo, lineStartingWith, allLinesMatchingPattern, parseTextModeTimeStr
-from util import lineMatching
-from exceptions import EncodingError
+from gsmModem.serial_comms import SerialComms
+from gsmModem.exceptions import CommandError, InvalidStateException, CmeError, CmsError, InterruptedException, TimeoutException, PinRequiredError, IncorrectPinError, SmscNumberUnknownError
+from gsmModem.pdu import encodeSmsSubmitPdu, decodeSmsPdu
+from gsmModem.util import SimpleOffsetTzInfo, lineStartingWith, allLinesMatchingPattern, parseTextModeTimeStr
+from gsmModem.util import lineMatching
+from gsmModem.exceptions import EncodingError
 PYTHON_VERSION = sys.version_info[0]
 if PYTHON_VERSION >= 3:
     xrange = range

@@ -7,7 +7,7 @@ from __future__ import unicode_literals
 import sys, codecs, math
 from datetime import datetime, timedelta, tzinfo
 from copy import copy
-from exceptions import EncodingError
+from gsmModem.exceptions import EncodingError
 
 # For Python 3 support
 PYTHON_VERSION = sys.version_info[0]
