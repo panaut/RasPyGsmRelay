@@ -53,7 +53,7 @@ class ModemManager:
                 # acquired port prefix
                 self.logger.debug('Serial port prefix is %s' % prefix)
 
-                for i in range(0, 21):
+                for i in range(0, portsToAttempt):
                     self.__gsmModem.port = prefix + str(i)
                     self.logger.info('Attempting to open port %s' % self.__gsmModem.port)
                     if self.__connect():
@@ -75,6 +75,12 @@ class ModemManager:
                             code=506,
                             message='Serial port not responding',
                             exception=tex)
+                return False
+            except OSError as osEx:
+                CustomException(
+                    code=506,
+                    message='OS Error',
+                    exception=osEx)
                 return False
             except Exception as ex:
                 raise CustomException(

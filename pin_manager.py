@@ -1,5 +1,5 @@
 import config
-# import RPi.GPIO as gpio
+import RPi.GPIO as gpio
 import time
 import threading
 
@@ -37,31 +37,26 @@ class PinManager:
             self.__blinkers = {}
 
             # set up GPIO using BCM numbering
-            # ToDo: Remove comment!
-            # gpio.setmode(gpio.BCM)
+            gpio.setmode(gpio.BCM)
             self.logger.debug('GPIO mode set to Broadcom')
 
             self.__switchPin = switchPin
-            # ToDo: Remove comment!
-            # gpio.setup(switchPin, gpio.OUT)
+            gpio.setup(switchPin, gpio.OUT)
             self.logger.debug('SWITCH pin set to %s' % switchPin)
 
             self.__statusLedPin = statusLedPin
             if statusLedPin:
-                # ToDo: Remove comment!
-                # gpio.setup(statusLedPin, gpio.OUT)
+                gpio.setup(statusLedPin, gpio.OUT)
                 self.logger.debug('STATUS_LED pin set to %s' % statusLedPin)
 
             self.__relayStatusPin = relayStatusLedPin
             if relayStatusLedPin:
-                # ToDo: Remove comment!
-                # gpio.setup(relayStatusLedPin, gpio.OUT)
+                gpio.setup(relayStatusLedPin, gpio.OUT)
                 self.logger.debug('RELAY_STATUS_LED pin set to %s' % relayStatusLedPin)
 
             self.__errorLedPin = errorLedPin
             if errorLedPin:
-                # ToDo: Remove comment!
-                # gpio.setup(errorLedPin, gpio.OUT)
+                gpio.setup(errorLedPin, gpio.OUT)
                 self.logger.debug('ERROR_LED pin set to %s' % errorLedPin)
 
             self.__switchPinMode = switchPinMode
@@ -71,28 +66,25 @@ class PinManager:
             self.__setPin(self.__switchPin, self.__PinState.INACTIVE)
 
         def __setPin(self, pin, pinState):
-            # ToDo: Remove comment!
-            # targetLevel = gpio.LOW
+            targetLevel = gpio.LOW
 
-            # ToDo: Remove comment!
-            # if pin == self.__switchPin:
-            #     if self.__switchPinMode == PinMode.ACTIVE_HIGH and pinState == self.__PinState.INACTIVE:
-            #         targetLevel = gpio.LOW
-            #     elif self.__switchPinMode == PinMode.ACTIVE_HIGH and pinState == self.__PinState.ACTIVE:
-            #         targetLevel = gpio.HIGH
-            #     elif self.__switchPinMode == PinMode.ACTIVE_LOW and pinState == self.__PinState.INACTIVE:
-            #         targetLevel = gpio.HIGH
-            #     elif self.__switchPinMode == PinMode.ACTIVE_LOW and pinState == self.__PinState.ACTIVE:
-            #         targetLevel = gpio.LOW
-            # else:
-            #     if pinState == self.__PinState.INACTIVE:
-            #         targetLevel = gpio.LOW
-            #     else:
-            #         targetLevel = gpio.HIGH
+            if pin == self.__switchPin:
+                if self.__switchPinMode == PinMode.ACTIVE_HIGH and pinState == self.__PinState.INACTIVE:
+                    targetLevel = gpio.LOW
+                elif self.__switchPinMode == PinMode.ACTIVE_HIGH and pinState == self.__PinState.ACTIVE:
+                    targetLevel = gpio.HIGH
+                elif self.__switchPinMode == PinMode.ACTIVE_LOW and pinState == self.__PinState.INACTIVE:
+                    targetLevel = gpio.HIGH
+                elif self.__switchPinMode == PinMode.ACTIVE_LOW and pinState == self.__PinState.ACTIVE:
+                    targetLevel = gpio.LOW
+            else:
+                if pinState == self.__PinState.INACTIVE:
+                    targetLevel = gpio.LOW
+                else:
+                    targetLevel = gpio.HIGH
 
             try:
-                # ToDo: Remove comment!
-                # gpio.output(pin, targetLevel)
+                gpio.output(pin, targetLevel)
                 self.logger.debug('Pin %s voltage level set to %s' % (pin, pinState))
 
                 if pin == self.__switchPin and self.__relayStatusPin:
@@ -142,6 +134,8 @@ class PinManager:
             blinkerThread = threading.Thread(
                                 target=self.__doBlink,
                                 kwargs={'pin': pin, 'timeOn': timeOn, 'timeOff': timeOff, 'stopEvent': threadStopEvent})
+            # blinkerThread.daemon = True
+
             self.__blinkers[pin] = threadStopEvent
 
             blinkerThread.start()
@@ -156,16 +150,18 @@ class PinManager:
 
         def setStatus(self, status):
             # do we have active blinker on this pin?
-            blinker = self.__blinkers.get(self.__statusLedPin, None)
+            blinker = self.__blinkers.pop(self.__statusLedPin, None)
 
             if self.__statusLedPin:
                 if status == AppStatus.INITIALIZING:
                     # start blinking
                     if not blinker:
-                        self.__blinkers[self.__statusLedPin] = self.__blink(
-                                                                        self.__statusLedPin,
-                                                                        config.BLINK_TIME_ON,
-                                                                        config.BLINK_TIME_OFF)
+                        blinker = self.__blink(
+                                            self.__statusLedPin,
+                                            config.BLINK_TIME_ON,
+                                            config.BLINK_TIME_OFF)
+                    self.__blinkers[self.__statusLedPin] = blinker
+
                 elif status == AppStatus.ACTIVE:
                     if blinker:
                         # stop blinking
@@ -182,8 +178,11 @@ class PinManager:
             self.logger.info("Status set to %s" % status)
 
         def cleanup(self):
-            # ToDo: Remove comment!
-            # gpio.cleanup()
+            # stop blinkers
+            for blinker in self.__blinkers:
+                blinker.clear()
+
+            gpio.cleanup()
             self.logger.info("GPIO 'cleanup' performed")
 
     __instance = None
