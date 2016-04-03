@@ -145,7 +145,7 @@ class PinManager:
         def activateSwitch(self):
             self.logger.info("Activating switch")
 
-            activatorThread = Thread(target=self.__doActivateSwitch())
+            activatorThread = Thread(target=self.__doActivateSwitch)
             activatorThread.start()
 
         def setStatus(self, status):

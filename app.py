@@ -67,13 +67,12 @@ class ConsoleApp:
         self.logger.info('GSM Relay Console App stopped.')
 
     def incommingCallHandler(self, call):
-        # if call.active:
+        if call.active:
+            print('Incoming call from: %s' % call.number)
+            self.pManager.activateSwitch()
 
-        print('Incoming call from: %s' % call.number)
-        self.pManager.activateSwitch()
-
-        call.hangup()
-        self.logger.debug('Call terminated')
+            call.hangup()
+            self.logger.debug('Call terminated')
 
         # if call.ringCount == 1:
         #     print('Incoming call from: %s' % call.number)
