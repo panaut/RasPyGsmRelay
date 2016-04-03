@@ -938,9 +938,9 @@ class GsmModem(SerialComms):
                 groups = regexMatch.groups()
                 # Set self._dialReponse to (callId, callType)
                 if len(groups) >= 2:
-                    self._dialResponse = (int(groups[0]) , int(groups[1]))
+                    self._dialResponse = (int(groups[0]), int(groups[1]))
                 else:
-                    self._dialResponse = (int(groups[0]), 1) # assume call type: VOICE
+                    self._dialResponse = (int(groups[0]), 1)    # assume call type: VOICE
             else:
                 self._dialResponse = callId, callType
             self._dialEvent.set()

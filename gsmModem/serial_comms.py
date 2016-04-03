@@ -2,7 +2,7 @@
 
 """ Low-level serial communications handling """
 
-import sys, threading, logging
+import sys, threading, logging, time
 import gsmModem.compat # For Python 2.6 compatibility
 import re
 import serial   # pyserial: http://pyserial.sourceforge.net
@@ -69,6 +69,10 @@ class SerialComms(object):
         else:
             # Nothing was waiting for this - treat it as a notification
             self._notification.append(line)
+
+            # PySerial for 2.7 has a bug
+            time.sleep(0.01)    # before checking whether serial ports awaits more data, wait a bit
+
             if self.serial.inWaiting() == 0:
                 # No more chars on the way for this notification - notify higher-level callback
                 #print 'notification:', self._notification

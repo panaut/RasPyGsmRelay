@@ -1,10 +1,21 @@
+import config
+# import RPi.GPIO as gpio
+import time
+import threading
+
 from exceptional.customException import CustomException
 from commonLog.rollingFileLog import RollingFileLog as Log
+from threading import Thread
 
 
 class PinMode:
     ACTIVE_LOW = 0
     ACTIVE_HIGH = 1
+
+class AppStatus:
+    INITIALIZING = 0
+    ACTIVE = 1
+    INACTIVE = 2
 
 
 class PinManager:
@@ -13,86 +24,191 @@ class PinManager:
             INACTIVE = 0
             ACTIVE = 1
 
-        class __PinLevel:
-            LOW = 0
-            HIGH = 1
-
-        def __init__(self, switchPin, pinMode, activationTime):
-            # @switchPin            definition of PIN to which relay is attached to
-            # @pinMode              definition of PIN mode (Active is HIGH or LOW)
-            # @activationTime       duration of relay activation
+        def __init__(self, switchPin, switchPinMode, statusLedPin, relayStatusLedPin, errorLedPin, activationTime):
+            # @switchPin                definition of PIN to which relay is attached to
+            # @switchPinMode            definition of PIN mode (Active is HIGH or LOW)
+            # @statusLedPin             definition of PIN to which STATUS LED is attached to
+            # @relayStatusLedPin        definition of PIN to which relay status LED is attached to
+            # @errorLedPin              definition of PIN to which error LED is attached to
+            # @activationTime           duration of relay activation
 
             self.logger = Log.getLogger('__PinManager')
 
+            self.__blinkers = {}
+
+            # set up GPIO using BCM numbering
+            # ToDo: Remove comment!
+            # gpio.setmode(gpio.BCM)
+            self.logger.debug('GPIO mode set to Broadcom')
+
             self.__switchPin = switchPin
-            self.__pinMode = pinMode
+            # ToDo: Remove comment!
+            # gpio.setup(switchPin, gpio.OUT)
+            self.logger.debug('SWITCH pin set to %s' % switchPin)
+
+            self.__statusLedPin = statusLedPin
+            if statusLedPin:
+                # ToDo: Remove comment!
+                # gpio.setup(statusLedPin, gpio.OUT)
+                self.logger.debug('STATUS_LED pin set to %s' % statusLedPin)
+
+            self.__relayStatusPin = relayStatusLedPin
+            if relayStatusLedPin:
+                # ToDo: Remove comment!
+                # gpio.setup(relayStatusLedPin, gpio.OUT)
+                self.logger.debug('RELAY_STATUS_LED pin set to %s' % relayStatusLedPin)
+
+            self.__errorLedPin = errorLedPin
+            if errorLedPin:
+                # ToDo: Remove comment!
+                # gpio.setup(errorLedPin, gpio.OUT)
+                self.logger.debug('ERROR_LED pin set to %s' % errorLedPin)
+
+            self.__switchPinMode = switchPinMode
             self.__activationTime = activationTime
 
-            # ToDo: Setup PIN as output
-            self.__setPin(self.__PinState.INACTIVE)
+            # Set relay to inactive state
+            self.__setPin(self.__switchPin, self.__PinState.INACTIVE)
 
-        def __setPin(self, pinState):
-            targetLevel = 0
+        def __setPin(self, pin, pinState):
+            # ToDo: Remove comment!
+            # targetLevel = gpio.LOW
 
-            if self.__pinMode == PinMode.ACTIVE_HIGH and pinState == self.__PinState.INACTIVE:
-                targetLevel = self.__PinLevel.LOW
-            elif self.__pinMode == PinMode.ACTIVE_HIGH and pinState == self.__PinState.ACTIVE:
-                targetLevel = self.__PinLevel.HIGH
-            elif self.__pinMode == PinMode.ACTIVE_LOW and pinState == self.__PinState.INACTIVE:
-                targetLevel = self.__PinLevel.HIGH
-            elif self.__pinMode == PinMode.ACTIVE_LOW and pinState == self.__PinState.ACTIVE:
-                targetLevel = self.__PinLevel.LOW
-
-            # do something with targetLevel...
+            # ToDo: Remove comment!
+            # if pin == self.__switchPin:
+            #     if self.__switchPinMode == PinMode.ACTIVE_HIGH and pinState == self.__PinState.INACTIVE:
+            #         targetLevel = gpio.LOW
+            #     elif self.__switchPinMode == PinMode.ACTIVE_HIGH and pinState == self.__PinState.ACTIVE:
+            #         targetLevel = gpio.HIGH
+            #     elif self.__switchPinMode == PinMode.ACTIVE_LOW and pinState == self.__PinState.INACTIVE:
+            #         targetLevel = gpio.HIGH
+            #     elif self.__switchPinMode == PinMode.ACTIVE_LOW and pinState == self.__PinState.ACTIVE:
+            #         targetLevel = gpio.LOW
+            # else:
+            #     if pinState == self.__PinState.INACTIVE:
+            #         targetLevel = gpio.LOW
+            #     else:
+            #         targetLevel = gpio.HIGH
 
             try:
-                # ToDo: Set value of output PIN
-                raise NotImplementedError("Don't forget to set pin voltage to targetLevel!")
+                # ToDo: Remove comment!
+                # gpio.output(pin, targetLevel)
+                self.logger.debug('Pin %s voltage level set to %s' % (pin, pinState))
+
+                if pin == self.__switchPin and self.__relayStatusPin:
+                    # set relay status LED ON or OFF
+                    self.__setPin(self.__relayStatusPin, pinState)
             except CustomException as ex:
                 raise ex    # Propagate error upwards
             except Exception as ex:
                 raise CustomException(
                                     code=902,
-                                    message='Unable to set output pin voltage to %s level' % pinState,
+                                    message="Unable to set output pin %s's voltage to %s level" % (pin, pinState),
                                     exception=ex)
 
-        def activateSwitch(self):
-            self.logger.debug("Called 'activatePin' method")
-
+        def __doActivateSwitch(self):
             try:
-                self.__setPin(self.__PinState.ACTIVE)
+                # Set switch to ACTIVE state
+                self.__setPin(self.__switchPin, self.__PinState.ACTIVE)
 
-                # ToDo: Implement Timing Mechanism
-                raise NotImplementedError("Don't forget your timer mechanism!")
+                # wait defined period pf time
+                time.sleep(self.__activationTime)
+
+                # Restore switch back to INACTIVE state
+                self.__setPin(self.__switchPin, self.__PinState.INACTIVE)
             except CustomException as ex:
-                raise ex    # Propagate error upwards
+                raise ex  # Propagate error upwards
             except Exception as ex:
                 raise CustomException(
-                                    code=903,
-                                    message='Unable to activate switch',
-                                    exception=ex)
+                    code=903,
+                    message='Unable to activate switch',
+                    exception=ex)
+
+        def __doBlink(self, pin, timeOn, timeOff, stopEvent):
+            self.logger.debug('Pin %s started blinking' % pin)
+            while stopEvent.isSet():
+                self.__setPin(pin, self.__PinState.ACTIVE)
+                time.sleep(timeOn)
+
+                self.__setPin(pin, self.__PinState.INACTIVE)
+                time.sleep(timeOff)
+
+            self.logger.debug('Pin %s stopped blinking' % pin)
+
+        def __blink(self, pin, timeOn, timeOff):
+            threadStopEvent = threading.Event()
+            threadStopEvent.set()
+
+            blinkerThread = threading.Thread(
+                                target=self.__doBlink,
+                                kwargs={'pin': pin, 'timeOn': timeOn, 'timeOff': timeOff, 'stopEvent': threadStopEvent})
+            self.__blinkers[pin] = threadStopEvent
+
+            blinkerThread.start()
+
+            return threadStopEvent
+
+        def activateSwitch(self):
+            self.logger.info("Activating switch")
+
+            activatorThread = Thread(target=self.__doActivateSwitch())
+            activatorThread.start()
+
+        def setStatus(self, status):
+            # do we have active blinker on this pin?
+            blinker = self.__blinkers.get(self.__statusLedPin, None)
+
+            if self.__statusLedPin:
+                if status == AppStatus.INITIALIZING:
+                    # start blinking
+                    if not blinker:
+                        self.__blinkers[self.__statusLedPin] = self.__blink(
+                                                                        self.__statusLedPin,
+                                                                        config.BLINK_TIME_ON,
+                                                                        config.BLINK_TIME_OFF)
+                elif status == AppStatus.ACTIVE:
+                    if blinker:
+                        # stop blinking
+                        blinker.clear()
+                    # turn LED ON
+                    self.__setPin(self.__statusLedPin, self.__PinState.ACTIVE)
+                else:
+                    if blinker:
+                        # stop blinking
+                        blinker.clear()
+                    # turn LED ON
+                    self.__setPin(self.__statusLedPin, self.__PinState.INACTIVE)
+
+            self.logger.info("Status set to %s" % status)
 
         def cleanup(self):
-            self.logger.debug("Called 'cleanup' method")
-
-            # ToDo: Reset PIN (opposite of setting up PIN as output)
-            raise NotImplementedError("Don't forget to reset PIN statuses!")
+            # ToDo: Remove comment!
+            # gpio.cleanup()
+            self.logger.info("GPIO 'cleanup' performed")
 
     __instance = None
 
-    def __init__(self, switchPin, pinMode=PinMode.ACTIVE_HIGH, activationTime=1):
+    def __init__(self,
+                 switchPin,
+                 switchPinMode = PinMode.ACTIVE_HIGH,
+                 statusLedPin=None,
+                 relayStatusLedPin=None,
+                 errorLedPin=None,
+                 activationTime=1):
         # @switchPin                definition of PIN to which relay is attached to
-        # @pinMode                  definition of PIN mode (Active is HIGH or LOW)
+        # @switchPinMode            definition of PIN mode (Active is HIGH or LOW)
+        # @statusLedPin             definition of PIN to which STATUS LED is attached to
+        # @relayStatusLedPin        definition of PIN to which relay status LED is attached to
+        # @errorLedPin              definition of PIN to which error LED is attached to
         # @activationTime           duration of relay activation
-
-        # ToDo: these lines should probably be removed
-        # if switchPin is None:
-        #     raise CustomException(code=901, message='Relay switch is not defined')
 
         if PinManager.__instance is None:
             PinManager.__instance = PinManager.__PinManager(
                                                     switchPin=switchPin,
-                                                    pinMode=pinMode,
+                                                    switchPinMode=switchPinMode,
+                                                    statusLedPin=statusLedPin,
+                                                    relayStatusLedPin=relayStatusLedPin,
+                                                    errorLedPin=errorLedPin,
                                                     activationTime=activationTime)
 
     def __getattr__(self, attrName):
